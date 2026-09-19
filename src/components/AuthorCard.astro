@@ -1,0 +1,26 @@
+---
+import { AUTHOR_NAME, AUTHOR_SITE_URL, GITHUB_USER, LINKEDIN_URL } from '../config/site';
+// Update author identity in src/config/site.ts
+const author = {
+  name: AUTHOR_NAME,
+  site: AUTHOR_SITE_URL,
+  github: `https://github.com/${GITHUB_USER}`,
+  linkedin: LINKEDIN_URL,
+};
+---
+
+<div class="author-card">
+  <img class="author-avatar" src="/avatar.webp" alt={author.name} width="64" height="64" />
+  <div class="author-info">
+    <div class="author-label">Written by</div>
+    <div class="author-name">{author.name}</div>
+    <p class="author-bio">
+      Senior Software Engineer & Instructor at <a href="https://www.arol.dev/" target="_blank" rel="noopener">arol.dev</a>.
+    </p>
+    <div class="author-links">
+      <a href={author.site} target="_blank" rel="noopener">Website</a>
+      <a href={author.github} target="_blank" rel="noopener">GitHub</a>
+      <a href={author.linkedin} target="_blank" rel="noopener">LinkedIn</a>
+    </div>
+  </div>
+</div>

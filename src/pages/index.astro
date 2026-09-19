@@ -1,0 +1,218 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { SITE_NAME, SITE_DESCRIPTION, AUTHOR_NAME, GITHUB_USER, LINKEDIN_URL } from '../config/site';
+import { getSortedPosts } from '../lib/posts';
+
+const posts = getSortedPosts(await getCollection('posts'));
+
+// All unique categories
+const categories = [...new Set(posts.flatMap(p => p.data.categories))].sort();
+
+const indexJsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'Person',
+  name: AUTHOR_NAME,
+  url: import.meta.env.SITE,
+  sameAs: [
+    `https://github.com/${GITHUB_USER}`,
+    LINKEDIN_URL,
+  ],
+};
+
+// Serialize minimal post data for client-side filtering
+const postsData = posts.map(p => ({
+  slug: p.slug,
+  title: p.data.title,
+  date: p.data.date.toISOString().split('T')[0],
+  excerpt: p.data.excerpt,
+  categories: p.data.categories,
+  readTime: Math.max(1, Math.round(p.body.trim().split(/\s+/).length / 200)),
+}));
+---
+
+<BaseLayout
+  title={SITE_NAME}
+  description={SITE_DESCRIPTION}
+  canonicalUrl={`${import.meta.env.SITE}/`}
+  jsonLd={indexJsonLd}
+>
+  <main class="page-wrap">
+    <!-- Category filter -->
+    <button class="filter-toggle" id="filter-toggle"
+            aria-expanded="false"
+            aria-controls="filter-panel">Filter ▾</button>
+    <div class="filter-panel" id="filter-panel" inert>
+      <div class="filter-bar" id="filter-bar">
+        {categories.map(cat => (
+          <button class="filter-tag" data-cat={cat}>{cat}</button>
+        ))}
+        <button class="clear-filters" id="clear-filters" style="display:none">
+          Clear filters ×
+        </button>
+      </div>
+    </div>
+
+    <!-- Section header -->
+    <div class="section-meta">
+      <span class="section-label">Posts</span>
+      <span class="post-count" id="post-count">{posts.length} posts</span>
+    </div>
+
+    <!-- Post list -->
+    <ul class="post-list" id="post-list">
+      {posts.map(post => {
+        const readTime = Math.max(1, Math.round(post.body.trim().split(/\s+/).length / 200));
+        const dateStr = post.data.date.toLocaleDateString('en-US', {
+          year: 'numeric', month: 'short', day: 'numeric', timeZone: 'UTC'
+        });
+        return (
+          <li class="post-item" data-categories={post.data.categories.join(',')}>
+            <div class="post-header">
+              <span class="post-date">{dateStr}</span>
+              <a href={`/posts/${post.slug}`} class="post-title-link">{post.data.title}</a>
+            </div>
+            <p class="post-excerpt">{post.data.excerpt}</p>
+            <div class="post-footer">
+              {post.data.categories.map(cat => (
+                <button class="tag post-tag" data-cat={cat}>{cat}</button>
+              ))}
+              <span class="read-time">{readTime} min read</span>
+            </div>
+          </li>
+        );
+      })}
+    </ul>
+
+    <div class="empty-state" id="empty-state" style="display:none">
+      No posts match your filters.
+    </div>
+  </main>
+
+  <!-- Embed post data for client filtering -->
+  <script define:vars={{ postsData, categories }}>
+    function initFilterPage() {
+    const postList     = document.getElementById('post-list');
+    const filterPanel  = document.getElementById('filter-panel');
+    // astro:after-swap listener persists across all future navigations, not just
+    // returns to this page — no-op when swapped to a page without these elements.
+    if (!postList || !filterPanel) return;
+
+    let activeTags = new Set();
+    const emptyState   = document.getElementById('empty-state');
+    const countEl      = document.getElementById('post-count');
+    const filterBtns   = Array.from(document.querySelectorAll('.filter-tag'));
+    const postItems    = Array.from(postList.querySelectorAll('.post-item'));
+    const filterToggle = document.getElementById('filter-toggle');
+
+    function updateFilterToggle() {
+      const count   = activeTags.size;
+      const isOpen  = filterPanel.classList.contains('open');
+      const chevron = isOpen ? '▴' : '▾';
+      filterToggle.textContent = count > 0
+        ? `Filter (${count}) ${chevron}`
+        : `Filter ${chevron}`;
+      filterToggle.setAttribute('aria-expanded', String(isOpen));
+    }
+
+    filterToggle.addEventListener('click', () => {
+      const opening = !filterPanel.classList.contains('open');
+      filterPanel.classList.toggle('open');
+      if (opening) {
+        filterPanel.removeAttribute('inert');
+      } else {
+        filterPanel.setAttribute('inert', '');
+      }
+      updateFilterToggle();
+    });
+
+    // Check URL for pre-selected category (?category=...)
+    const urlCat = new URLSearchParams(window.location.search).get('category');
+    if (urlCat && categories.includes(urlCat)) {
+      activeTags = new Set([urlCat]);
+      filterPanel.classList.add('open');
+      filterPanel.removeAttribute('inert');
+    }
+
+    function applyFilters() {
+      let visible = 0;
+
+      postItems.forEach(item => {
+        const itemCats = (item.dataset.categories || '').split(',').map(c => c.trim());
+
+        const catMatch = activeTags.size === 0 ||
+                         [...activeTags].every(t => itemCats.includes(t));
+
+        const show = catMatch;
+        item.style.display = show ? '' : 'none';
+        if (show) visible++;
+      });
+
+      countEl.textContent = visible + ' post' + (visible !== 1 ? 's' : '');
+      emptyState.style.display = visible === 0 ? 'block' : 'none';
+    }
+
+    function updateFilterBar() {
+      filterBtns.forEach(btn => {
+        const tag = btn.dataset.cat;
+        const isActive = activeTags.has(tag);
+        btn.classList.toggle('active', isActive);
+        btn.textContent = tag;
+      });
+
+      const clearBtn = document.getElementById('clear-filters');
+      if (clearBtn) clearBtn.style.display = activeTags.size > 0 ? '' : 'none';
+
+      updateFilterToggle();
+    }
+
+    // Filter bar buttons
+    filterBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const tag = btn.dataset.cat;
+        if (activeTags.has(tag)) activeTags.delete(tag);
+        else activeTags.add(tag);
+        updateFilterBar();
+        applyFilters();
+      });
+    });
+
+    // Clear filters button
+    document.getElementById('clear-filters')?.addEventListener('click', () => {
+      activeTags.clear();
+      updateFilterBar();
+      applyFilters();
+    });
+
+    // Inline post tag clicks
+    document.querySelectorAll('.post-tag').forEach(tag => {
+      tag.addEventListener('click', e => {
+        e.preventDefault();
+        const cat = tag.dataset.cat;
+        if (activeTags.has(cat)) activeTags.delete(cat);
+        else activeTags.add(cat);
+
+        if (!filterPanel.classList.contains('open')) {
+          filterPanel.classList.add('open');
+          filterPanel.removeAttribute('inert');
+        }
+
+        updateFilterBar();
+        applyFilters();
+      });
+    });
+
+    // Init
+    updateFilterBar();
+    applyFilters();
+    }
+
+    // <main> is not transition:persist, so it's rebuilt on every navigation —
+    // re-run init after each swap, matching PostLayout's astro:after-swap pattern.
+    initFilterPage();
+    if (!window.__indexFilterSwapListener) {
+      window.__indexFilterSwapListener = true;
+      document.addEventListener('astro:after-swap', initFilterPage);
+    }
+  </script>
+</BaseLayout>

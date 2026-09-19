@@ -1,0 +1,60 @@
+---
+import type { MarkdownHeading } from 'astro';
+
+interface Props {
+  headings: MarkdownHeading[];
+}
+
+const { headings } = Astro.props;
+---
+
+<nav class="toc-block" aria-label="Table of contents">
+  <div class="toc-title" id="toc-title">
+    Contents
+    <svg class="toc-toggle-icon" width="14" height="14" viewBox="0 0 14 14" fill="none"
+         stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="2,5 7,10 12,5"></polyline>
+    </svg>
+  </div>
+  <ul class="toc-list" id="toc-list">
+    {headings.map(h => (
+      <li class={h.depth === 3 ? 'h3' : ''}>
+        <a href={`#${h.slug}`}>{h.text}</a>
+      </li>
+    ))}
+  </ul>
+</nav>
+
+<script>
+  let tocObserver: IntersectionObserver | null = null;
+  function initTOC(): void {
+    tocObserver?.disconnect();
+
+    document.getElementById('toc-title')?.addEventListener('click', () => {
+      document.querySelector('.toc-block')?.classList.toggle('collapsed');
+    });
+
+    const tocLinks = document.querySelectorAll('.toc-list a');
+    if (tocLinks.length === 0) return;
+    const headingEls = Array.from(tocLinks).map(a => {
+      const id = (a as HTMLAnchorElement).getAttribute('href')?.slice(1);
+      return id ? document.getElementById(id) : null;
+    });
+
+    const observer = new IntersectionObserver(entries => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          tocLinks.forEach(a => {
+            a.classList.toggle('active', (a as HTMLAnchorElement).getAttribute('href') === '#' + entry.target.id);
+          });
+        }
+      });
+    }, { rootMargin: '-10% 0px -80% 0px' });
+
+    headingEls.forEach(el => { if (el) observer.observe(el); });
+    tocObserver = observer;
+  }
+
+  initTOC();
+  document.addEventListener('astro:after-swap', initTOC);
+</script>

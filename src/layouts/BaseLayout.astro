@@ -1,0 +1,217 @@
+---
+import '../styles/global.css';
+import { ViewTransitions } from 'astro:transitions';
+import {
+  SITE_NAME, SITE_DESCRIPTION, AUTHOR_NAME,
+  AUTHOR_TWITTER, AUTHOR_SITE_URL, GITHUB_USER, LINKEDIN_URL,
+} from '../config/site';
+
+interface Props {
+  title: string;
+  description?: string;
+  ogType?: 'website' | 'article';
+  ogImage?: string;
+  canonicalUrl?: string;
+  publishedDate?: Date;
+  articleTags?: string[];
+  jsonLd?: object;
+}
+
+const {
+  title,
+  description = SITE_DESCRIPTION,
+  ogType = 'website',
+  ogImage,
+  canonicalUrl,
+  publishedDate,
+  articleTags,
+  jsonLd,
+} = Astro.props;
+
+const resolvedOgImage = ogImage ?? `${import.meta.env.SITE}/og-default.png`;
+---
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{title}</title>
+  <meta name="description" content={description} />
+
+  <!-- Canonical -->
+  {canonicalUrl && <link rel="canonical" href={canonicalUrl} />}
+
+  <!-- Open Graph -->
+  <meta property="og:type"         content={ogType} />
+  <meta property="og:title"        content={title} />
+  <meta property="og:description"  content={description} />
+  <meta property="og:url"          content={canonicalUrl ?? import.meta.env.SITE} />
+  <meta property="og:image"        content={resolvedOgImage} />
+  <meta property="og:image:width"  content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:site_name"    content={SITE_NAME} />
+  <meta property="og:locale"       content="en_US" />
+  {publishedDate && (
+    <meta property="article:published_time" content={publishedDate.toISOString()} />
+  )}
+  {articleTags?.map(tag => (
+    <meta property="article:tag" content={tag} />
+  ))}
+
+  <!-- Twitter / X -->
+  <meta name="twitter:card"        content="summary_large_image" />
+  <meta name="twitter:site"        content={AUTHOR_TWITTER} />
+  <meta name="twitter:creator"     content={AUTHOR_TWITTER} />
+  <meta name="twitter:title"       content={title} />
+  <meta name="twitter:description" content={description} />
+  <meta name="twitter:image"       content={resolvedOgImage} />
+
+  <!-- Robots -->
+  <meta name="robots" content="index, follow" />
+
+  <!-- Favicon -->
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+
+  <!-- RSS autodiscovery -->
+  <link rel="alternate" type="application/rss+xml" title={SITE_NAME} href="/rss.xml" />
+
+  <!-- JSON-LD Structured Data -->
+  {jsonLd && (
+    <script type="application/ld+json" set:html={JSON.stringify(jsonLd).replace(/</g, '\\u003c')} />
+  )}
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet" />
+  <ViewTransitions />
+  <script is:inline>
+    // Apply stored theme before first paint to prevent flash
+    const t = localStorage.getItem('theme');
+    if (t === 'dark' || t === 'light') document.documentElement.setAttribute('data-theme', t);
+
+    // Preserve data-theme across View Transitions — Astro's swap syncs
+    // <html> attributes from the incoming page which has no data-theme set.
+    // Guard with window flag: this is:inline so it re-runs on every navigation.
+    if (!window.__themeSwapListener) {
+      window.__themeSwapListener = true;
+      document.addEventListener('astro:before-swap', (e) => {
+        const theme = document.documentElement.getAttribute('data-theme');
+        if (theme === 'dark' || theme === 'light') e.newDocument.documentElement.setAttribute('data-theme', theme);
+      });
+    }
+  </script>
+</head>
+<body>
+  <header transition:persist>
+    <div class="header-inner">
+      <a href="/" class="site-title">BackInThe<span>Day</span></a>
+      <div class="header-right">
+        <button class="icon-btn" id="theme-toggle" aria-label="Toggle theme" title="Toggle theme">
+          <svg id="icon-sun" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" style="display:none">
+            <circle cx="8" cy="8" r="3"></circle>
+            <line x1="8" y1="1" x2="8" y2="2.5"></line>
+            <line x1="8" y1="13.5" x2="8" y2="15"></line>
+            <line x1="1" y1="8" x2="2.5" y2="8"></line>
+            <line x1="13.5" y1="8" x2="15" y2="8"></line>
+            <line x1="3.05" y1="3.05" x2="4.1" y2="4.1"></line>
+            <line x1="11.9" y1="11.9" x2="12.95" y2="12.95"></line>
+            <line x1="12.95" y1="3.05" x2="11.9" y2="4.1"></line>
+            <line x1="4.1" y1="11.9" x2="3.05" y2="12.95"></line>
+          </svg>
+          <svg id="icon-moon" width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+            <path d="M13.5 10A6 6 0 0 1 6 2.5a6 6 0 1 0 7.5 7.5z"></path>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <slot />
+
+  <footer>
+    <div class="footer-inner">
+      <span class="footer-copy">© {new Date().getFullYear()} {AUTHOR_NAME}</span>
+      <div class="footer-links">
+        <a href={AUTHOR_SITE_URL} target="_blank" rel="noopener">Website</a>
+        <a href={`https://github.com/${GITHUB_USER}`} target="_blank" rel="noopener">GitHub</a>
+        <a href={LINKEDIN_URL} target="_blank" rel="noopener">LinkedIn</a>
+        <a href="/rss.xml">RSS</a>
+      </div>
+    </div>
+  </footer>
+
+  <script is:inline>
+    if (!window.__consoleGreeted) {
+      window.__consoleGreeted = true;
+
+      var a = 'color:#58a6ff;font-family:monospace';
+      var b = 'color:#e6edf3;font-weight:bold;font-family:monospace';
+      var m = 'color:#8b949e;font-family:monospace';
+
+      console.log(
+        '%c╔══════════════════════════════════════════╗\n' +
+        '║                                          ║\n' +
+        '║   BackInTheDay                           ║\n' +
+        '║   by Dave Martínez (@DMartiniDev)        ║\n' +
+        '║                                          ║\n' +
+        '╚══════════════════════════════════════════╝', a
+      );
+      console.log('%c👋 Hey, you opened the DevTools.\n   I like you already.', b);
+      console.log(
+        '%cThis blog is hand-crafted in Astro.\n' +
+        'Curious about how it\'s built? The source is on GitHub:\n' +
+        '%c→ https://github.com/DMartiniDev/backintheday',
+        m, a
+      );
+      console.log('%c──────────────────────────────────────────', a);
+      console.log(
+        '%cWant to go deeper?\n\n' +
+        'I teach JavaScript, algorithms, data structures,\n' +
+        'frontend, backend & databases at arol.dev —\n' +
+        'a full software engineering program built for\n' +
+        'people exactly like you.\n', m
+      );
+      console.log('%c🎓 Check it out → https://arol.dev', a);
+      console.log('%c──────────────────────────────────────────', a);
+    }
+  </script>
+
+  <script>
+    let themeAbort: AbortController | null = null;
+    function isDark() {
+      const t = document.documentElement.getAttribute('data-theme');
+      if (t === 'dark') return true;
+      if (t === 'light') return false;
+      return window.matchMedia('(prefers-color-scheme: dark)').matches;
+    }
+
+    function updateIcon() {
+      const sun  = document.getElementById('icon-sun') as HTMLElement;
+      const moon = document.getElementById('icon-moon') as HTMLElement;
+      if (sun)  sun.style.display  = isDark() ? 'block' : 'none';
+      if (moon) moon.style.display = isDark() ? 'none'  : 'block';
+    }
+
+    updateIcon();
+
+    // header is transition:persist — AbortController prevents click handler accumulation
+    themeAbort?.abort();
+    const themeCtrl = new AbortController();
+    themeAbort = themeCtrl;
+
+    document.getElementById('theme-toggle')?.addEventListener('click', () => {
+      const next = isDark() ? 'light' : 'dark';
+      document.documentElement.setAttribute('data-theme', next);
+      localStorage.setItem('theme', next);
+      updateIcon();
+
+      // Sync Giscus theme if widget is loaded
+      const iframe = document.querySelector<HTMLIFrameElement>('iframe.giscus-frame');
+      iframe?.contentWindow?.postMessage(
+        { giscus: { setConfig: { theme: next } } },
+        'https://giscus.app'
+      );
+    }, { signal: themeCtrl.signal });
+  </script>
+</body>
+</html>
