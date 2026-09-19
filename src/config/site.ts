@@ -14,6 +14,6 @@ export const GITHUB_REPO = `${AUTHOR_HANDLE}/backintheday`;
 export const LINKEDIN_URL = "https://www.linkedin.com/in/dmartinidev";
 
 export const GISCUS_REPO = GITHUB_REPO;
-export const GISCUS_REPO_ID = "FILL_IN_FROM_GISCUS_APP";
+export const GISCUS_REPO_ID = "R_kgDOUhaK_g";
 export const GISCUS_CAT = "Comments";
-export const GISCUS_CAT_ID = "FILL_IN_FROM_GISCUS_APP";
+export const GISCUS_CAT_ID = "DIC_kwDOUhaK_s4DF9WT";
